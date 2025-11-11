@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-11-10T23:19:52.830684",
+  "attestation_id": "6e0249f0243df6b2c4d799d038652ea7a12b111682bf6bd1e4b4ed1673c77add",
+  "result": {
+    "passed": true,
+    "score": 100,
+    "tx_hash": "def312fd6b4b3840d61d35a29d0dddc8f6c69941934f04be336d053e2f356de9",
+    "status": "success"
+  },
+  "verifier": "0x25e6CA2E68726D818f43a67C93b9627b285C1892"
+}

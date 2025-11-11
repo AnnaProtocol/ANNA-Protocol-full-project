@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 ANNA Protocol - Tier 1 Verifier
 Verificador automático de attestations de agentes de IA
@@ -22,17 +23,28 @@ import os
 import jsonschema
 from datetime import datetime
 
-# Configurar logging
+# Configurar logging com UTF-8
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
 )
+# Force UTF-8 encoding para o handler
+for handler in logging.root.handlers:
+    if hasattr(handler, 'stream') and hasattr(handler.stream, 'reconfigure'):
+        try:
+            handler.stream.reconfigure(encoding='utf-8')
+        except:
+            pass
+
 logger = logging.getLogger(__name__)
 
-# Carregar variáveis de ambiente
+# Carregar variÃ¡veis de ambiente
 load_dotenv()
 
-# Schema para validação de raciocínios
+# Schema para validaÃ§Ã£o de raciocÃ­nios
 REASONING_SCHEMA = {
     "type": "object",
     "required": ["input", "reasoning_steps", "conclusion", "confidence"],
@@ -56,7 +68,7 @@ REASONING_SCHEMA = {
     }
 }
 
-# Padrões proibidos (jailbreaks, ataques)
+# PadrÃµes proibidos (jailbreaks, ataques)
 FORBIDDEN_PATTERNS = [
     "ignore previous instructions",
     "ignore all instructions",
@@ -89,15 +101,15 @@ class ANNAVerifier:
         Args:
             rpc_url: URL do RPC (Polygon Amoy)
             private_key: Chave privada do verificador
-            attestation_contract_address: Endereço do contrato AnnaAttestation
+            attestation_contract_address: EndereÃ§o do contrato AnnaAttestation
             attestation_abi: ABI do contrato
-            dry_run: Se True, não envia transações (apenas simula)
+            dry_run: Se True, nÃ£o envia transaÃ§Ãµes (apenas simula)
         """
         self.dry_run = dry_run
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
         
         if not self.w3.is_connected():
-            raise ConnectionError("Não foi possível conectar ao RPC")
+            raise ConnectionError("NÃ£o foi possÃ­vel conectar ao RPC")
         
         self.account = Account.from_key(private_key)
         self.contract = self.w3.eth.contract(
@@ -109,7 +121,7 @@ class ANNAVerifier:
         self.setup_structured_logging()
         
         logger.info("=" * 60)
-        logger.info(f"🤖 ANNA Verifier Tier 1 Iniciado {'(DRY RUN MODE)' if dry_run else ''}")
+        logger.info(f"ðŸ¤– ANNA Verifier Tier 1 Iniciado {'(DRY RUN MODE)' if dry_run else ''}")
         logger.info("=" * 60)
         logger.info(f"Verificador: {self.account.address}")
         logger.info(f"Network: {self.w3.eth.chain_id}")
@@ -119,13 +131,13 @@ class ANNAVerifier:
         balance_matic = self.w3.from_wei(balance, 'ether')
         logger.info(f"Saldo: {balance_matic:.4f} MATIC")
         
-        # Verificar se está autorizado
+        # Verificar se estÃ¡ autorizado
         if not dry_run:
             is_authorized = self.contract.functions.authorizedVerifiers(self.account.address).call()
             if is_authorized:
-                logger.info("✅ Verificador AUTORIZADO")
+                logger.info("âœ… Verificador AUTORIZADO")
             else:
-                logger.warning("⚠️  Verificador NÃO autorizado - precisa ser adicionado pelo owner")
+                logger.warning("âš ï¸  Verificador NÃƒO autorizado - precisa ser adicionado pelo owner")
         
         logger.info("=" * 60)
     
@@ -144,7 +156,7 @@ class ANNAVerifier:
         self.json_logger = json_logger
     
     def log_verification(self, attestation_id: str, result: dict):
-        """Salva verificação em log estruturado"""
+        """Salva verificaÃ§Ã£o em log estruturado"""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "attestation_id": attestation_id,
@@ -168,13 +180,13 @@ class ANNAVerifier:
     
     def verify_reasoning(self, reasoning_json: Dict) -> Tuple[bool, int, str]:
         """
-        Executa verificação Tier 1 (determinística)
+        Executa verificaÃ§Ã£o Tier 1 (determinÃ­stica)
         
         Args:
-            reasoning_json: JSON do raciocínio do agente
+            reasoning_json: JSON do raciocÃ­nio do agente
             
         Returns:
-            Tuple (passou: bool, score: int, razão: str)
+            Tuple (passou: bool, score: int, razÃ£o: str)
         """
         checks_passed = 0
         total_checks = 7  # Aumentado para incluir hash check
@@ -183,80 +195,80 @@ class ANNAVerifier:
         try:
             # Check 0: Calcular hash de integridade
             reasoning_hash = self.calculate_reasoning_hash(reasoning_json)
-            logger.debug(f"✓ Check 0: Hash SHA256 calculado: {reasoning_hash[:16]}...")
+            logger.debug(f"âœ“ Check 0: Hash SHA256 calculado: {reasoning_hash[:16]}...")
             checks_passed += 1
             
             # Check 1: Valida estrutura JSON
             try:
                 jsonschema.validate(instance=reasoning_json, schema=REASONING_SCHEMA)
                 checks_passed += 1
-                logger.debug("✓ Check 1: Estrutura JSON válida")
+                logger.debug("âœ“ Check 1: Estrutura JSON vÃ¡lida")
             except jsonschema.ValidationError as e:
                 failure_reason = f"Invalid JSON structure: {e.message[:100]}"
-                logger.warning(f"✗ Check 1: {failure_reason}")
+                logger.warning(f"âœ— Check 1: {failure_reason}")
                 return (False, 0, failure_reason)
             
-            # Check 2: Verifica campos obrigatórios
+            # Check 2: Verifica campos obrigatÃ³rios
             required_fields = ["input", "reasoning_steps", "conclusion", "confidence"]
             if all(field in reasoning_json for field in required_fields):
                 checks_passed += 1
-                logger.debug("✓ Check 2: Todos campos obrigatórios presentes")
+                logger.debug("âœ“ Check 2: Todos campos obrigatÃ³rios presentes")
             else:
                 missing = [f for f in required_fields if f not in reasoning_json]
                 failure_reason = f"Missing required fields: {missing}"
-                logger.warning(f"✗ Check 2: {failure_reason}")
+                logger.warning(f"âœ— Check 2: {failure_reason}")
             
-            # Check 3: Detecta padrões proibidos
+            # Check 3: Detecta padrÃµes proibidos
             reasoning_text = json.dumps(reasoning_json).lower()
             detected_patterns = [p for p in FORBIDDEN_PATTERNS if p in reasoning_text]
             
             if not detected_patterns:
                 checks_passed += 1
-                logger.debug("✓ Check 3: Nenhum padrão proibido detectado")
+                logger.debug("âœ“ Check 3: Nenhum padrÃ£o proibido detectado")
             else:
                 failure_reason = f"Forbidden patterns detected: {detected_patterns[:3]}"
-                logger.warning(f"✗ Check 3: {failure_reason}")
+                logger.warning(f"âœ— Check 3: {failure_reason}")
             
-            # Check 4: Valida range de confiança
+            # Check 4: Valida range de confianÃ§a
             confidence = reasoning_json.get("confidence", -1)
             if 0 <= confidence <= 1:
                 checks_passed += 1
-                logger.debug(f"✓ Check 4: Confiança válida ({confidence})")
+                logger.debug(f"âœ“ Check 4: ConfianÃ§a vÃ¡lida ({confidence})")
             else:
                 failure_reason = f"Invalid confidence range: {confidence}"
-                logger.warning(f"✗ Check 4: {failure_reason}")
+                logger.warning(f"âœ— Check 4: {failure_reason}")
             
-            # Check 5: Checa consistência de passos
+            # Check 5: Checa consistÃªncia de passos
             steps = reasoning_json.get("reasoning_steps", [])
             if len(steps) >= 1 and all(isinstance(s, dict) for s in steps):
                 checks_passed += 1
-                logger.debug(f"✓ Check 5: {len(steps)} passos válidos")
+                logger.debug(f"âœ“ Check 5: {len(steps)} passos vÃ¡lidos")
             else:
                 failure_reason = f"Invalid reasoning steps: {len(steps)} steps"
-                logger.warning(f"✗ Check 5: {failure_reason}")
+                logger.warning(f"âœ— Check 5: {failure_reason}")
             
-            # Check 6: Valida tamanho razoável (anti-spam)
+            # Check 6: Valida tamanho razoÃ¡vel (anti-spam)
             reasoning_size = len(json.dumps(reasoning_json))
             if 100 <= reasoning_size <= 50000:  # Entre 100 bytes e 50KB
                 checks_passed += 1
-                logger.debug(f"✓ Check 6: Tamanho razoável ({reasoning_size} bytes)")
+                logger.debug(f"âœ“ Check 6: Tamanho razoÃ¡vel ({reasoning_size} bytes)")
             else:
                 failure_reason = f"Invalid size: {reasoning_size} bytes"
-                logger.warning(f"✗ Check 6: {failure_reason}")
+                logger.warning(f"âœ— Check 6: {failure_reason}")
             
             # Calcula score
             score = int((checks_passed / total_checks) * 100)
-            passed = score >= 60  # Threshold mínimo: 60%
+            passed = score >= 60  # Threshold mÃ­nimo: 60%
             
             if passed:
-                logger.info(f"✅ Verificação PASSOU - Score: {score}/100 ({checks_passed}/{total_checks} checks)")
+                logger.info(f"âœ… VerificaÃ§Ã£o PASSOU - Score: {score}/100 ({checks_passed}/{total_checks} checks)")
             else:
-                logger.warning(f"❌ Verificação FALHOU - Score: {score}/100 - {failure_reason}")
+                logger.warning(f"âŒ VerificaÃ§Ã£o FALHOU - Score: {score}/100 - {failure_reason}")
             
             return (passed, score, failure_reason if not passed else "All checks passed")
             
         except Exception as e:
-            logger.error(f"❌ Erro durante verificação: {e}")
+            logger.error(f"âŒ Erro durante verificaÃ§Ã£o: {e}")
             return (False, 0, f"Verification error: {str(e)[:100]}")
     
     def submit_verification(
@@ -266,24 +278,24 @@ class ANNAVerifier:
         score: int
     ) -> Optional[str]:
         """
-        Submete resultado da verificação para a blockchain
+        Submete resultado da verificaÃ§Ã£o para a blockchain
         
         Args:
             attestation_id: ID da attestation (hex string)
-            passed: Se a verificação passou
+            passed: Se a verificaÃ§Ã£o passou
             score: Score 0-100
             
         Returns:
             Transaction hash ou None se falhar
         """
         try:
-            logger.info(f"📤 Submetendo verificação para attestation {attestation_id[:10]}...")
+            logger.info(f"ðŸ“¤ Submetendo verificaÃ§Ã£o para attestation {attestation_id[:10]}...")
             
             # Dry run mode - apenas simula
             if self.dry_run:
-                logger.info(f"   🔍 DRY RUN - Não enviando transação real")
-                logger.info(f"   ✓ Passed: {passed}")
-                logger.info(f"   ✓ Score: {score}")
+                logger.info(f"   ðŸ” DRY RUN - NÃ£o enviando transaÃ§Ã£o real")
+                logger.info(f"   âœ“ Passed: {passed}")
+                logger.info(f"   âœ“ Score: {score}")
                 
                 # Log estruturado
                 self.log_verification(attestation_id, {
@@ -300,7 +312,7 @@ class ANNAVerifier:
             else:
                 attestation_id_bytes = bytes.fromhex(attestation_id)
             
-            # Construir transação
+            # Construir transaÃ§Ã£o
             tx = self.contract.functions.verifyAttestation(
                 attestation_id_bytes,
                 passed,
@@ -314,17 +326,17 @@ class ANNAVerifier:
             
             # Assinar e enviar
             signed_tx = self.w3.eth.account.sign_transaction(tx, self.account.key)
-            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.raw_transaction)
             
-            logger.info(f"   📝 TX Hash: {tx_hash.hex()}")
-            logger.info(f"   ⏳ Aguardando confirmação...")
+            logger.info(f"   ðŸ“ TX Hash: {tx_hash.hex()}")
+            logger.info(f"   â³ Aguardando confirmaÃ§Ã£o...")
             
-            # Aguardar confirmação
+            # Aguardar confirmaÃ§Ã£o
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             
             if receipt['status'] == 1:
-                logger.info(f"   ✅ Verificação submetida com sucesso!")
-                logger.info(f"   🔗 Explorer: https://amoy.polygonscan.com/tx/{tx_hash.hex()}")
+                logger.info(f"   âœ… VerificaÃ§Ã£o submetida com sucesso!")
+                logger.info(f"   ðŸ”— Explorer: https://amoy.polygonscan.com/tx/{tx_hash.hex()}")
                 
                 # Log estruturado
                 self.log_verification(attestation_id, {
@@ -334,7 +346,7 @@ class ANNAVerifier:
                     "status": "success"
                 })
             else:
-                logger.error(f"   ❌ Transação falhou!")
+                logger.error(f"   âŒ TransaÃ§Ã£o falhou!")
                 
                 # Log estruturado
                 self.log_verification(attestation_id, {
@@ -346,7 +358,7 @@ class ANNAVerifier:
             return tx_hash.hex()
             
         except Exception as e:
-            logger.error(f"❌ Erro ao submeter verificação: {e}")
+            logger.error(f"âŒ Erro ao submeter verificaÃ§Ã£o: {e}")
             return None
     
     def listen_for_attestations(self, poll_interval: int = 10):
@@ -357,7 +369,7 @@ class ANNAVerifier:
             poll_interval: Intervalo de polling em segundos
         """
         logger.info(f"\n{'='*60}")
-        logger.info(f"👂 Escutando novos attestations...")
+        logger.info(f"ðŸ‘‚ Escutando novos attestations...")
         logger.info(f"   Intervalo de polling: {poll_interval}s")
         logger.info(f"{'='*60}\n")
         
@@ -386,24 +398,24 @@ class ANNAVerifier:
                     category = event['args']['category']
                     timestamp = event['args']['timestamp']
                     
-                    logger.info(f"\n{'🔔 '*20}")
-                    logger.info(f"🔔 NOVA ATTESTATION DETECTADA!")
-                    logger.info(f"{'🔔 '*20}")
+                    logger.info(f"\n{'ðŸ”” '*20}")
+                    logger.info(f"ðŸ”” NOVA ATTESTATION DETECTADA!")
+                    logger.info(f"{'ðŸ”” '*20}")
                     logger.info(f"   ID: {attestation_id}")
                     logger.info(f"   Agent: {agent}")
                     logger.info(f"   Category: {category}")
                     logger.info(f"   Timestamp: {timestamp}")
                     
-                    # IMPORTANTE: Aqui você buscaria o reasoning do storage off-chain
+                    # IMPORTANTE: Aqui vocÃª buscaria o reasoning do storage off-chain
                     # Por enquanto, vamos simular um reasoning de exemplo
-                    logger.info(f"\n   ⏳ Buscando reasoning do storage off-chain...")
+                    logger.info(f"\n   â³ Buscando reasoning do storage off-chain...")
                     
-                    # Em produção, você faria:
+                    # Em produÃ§Ã£o, vocÃª faria:
                     # reasoning = fetch_from_ipfs(attestation_id)
                     # ou
                     # reasoning = fetch_from_api(attestation_id)
                     
-                    # Para demonstração, vamos usar um exemplo
+                    # Para demonstraÃ§Ã£o, vamos usar um exemplo
                     example_reasoning = {
                         "input": "Generate legal contract",
                         "reasoning_steps": [
@@ -422,10 +434,10 @@ class ANNAVerifier:
                         "confidence": 0.92
                     }
                     
-                    logger.info(f"   📄 Reasoning obtido ({len(json.dumps(example_reasoning))} bytes)")
+                    logger.info(f"   ðŸ“„ Reasoning obtido ({len(json.dumps(example_reasoning))} bytes)")
                     
                     # Verificar
-                    logger.info(f"\n   🔍 Executando verificação Tier 1...")
+                    logger.info(f"\n   ðŸ” Executando verificaÃ§Ã£o Tier 1...")
                     passed, score, reason = self.verify_reasoning(example_reasoning)
                     
                     # Submeter resultado
@@ -434,25 +446,25 @@ class ANNAVerifier:
                         
                         if tx_hash:
                             logger.info(f"\n{'='*60}")
-                            logger.info(f"✅ VERIFICAÇÃO COMPLETA")
+                            logger.info(f"âœ… VERIFICAÃ‡ÃƒO COMPLETA")
                             logger.info(f"   Resultado: {'APROVADO' if passed else 'REJEITADO'}")
                             logger.info(f"   Score: {score}/100")
                             logger.info(f"   TX: {tx_hash[:16]}...")
                             logger.info(f"{'='*60}\n")
                 
-                # Aguardar próximo poll
+                # Aguardar prÃ³ximo poll
                 time.sleep(poll_interval)
                 
             except KeyboardInterrupt:
-                logger.info("\n\n⚠️  Verificador interrompido pelo usuário")
+                logger.info("\n\nâš ï¸  Verificador interrompido pelo usuÃ¡rio")
                 break
             except Exception as e:
-                logger.error(f"❌ Erro no loop de escuta: {e}")
+                logger.error(f"âŒ Erro no loop de escuta: {e}")
                 time.sleep(poll_interval)
 
 
 def main():
-    """Função principal"""
+    """FunÃ§Ã£o principal"""
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='ANNA Protocol Tier 1 Verifier')
@@ -460,13 +472,13 @@ def main():
     parser.add_argument('--poll-interval', type=int, default=10, help='Polling interval in seconds (default: 10)')
     args = parser.parse_args()
     
-    # Carregar configurações do .env
+    # Carregar configuraÃ§Ãµes do .env
     rpc_url = os.getenv('POLYGON_AMOY_RPC')
     private_key = os.getenv('VERIFIER_PRIVATE_KEY')
     contract_address = os.getenv('ATTESTATION_CONTRACT_ADDRESS')
     
     if not all([rpc_url, private_key, contract_address]):
-        logger.error("❌ Erro: Variáveis de ambiente faltando!")
+        logger.error("âŒ Erro: VariÃ¡veis de ambiente faltando!")
         logger.error("   Certifique-se de ter no .env:")
         logger.error("   - POLYGON_AMOY_RPC")
         logger.error("   - VERIFIER_PRIVATE_KEY")
@@ -480,9 +492,9 @@ def main():
         with open(abi_path, 'r') as f:
             attestation_abi = json.load(f)
     except FileNotFoundError:
-        logger.error(f"❌ Erro: Arquivo ABI não encontrado: {abi_path}")
+        logger.error(f"âŒ Erro: Arquivo ABI nÃ£o encontrado: {abi_path}")
         logger.error("   Execute: npx hardhat compile")
-        logger.error("   E copie o ABI do contrato para este diretório")
+        logger.error("   E copie o ABI do contrato para este diretÃ³rio")
         return
     
     # Inicializar verificador
@@ -499,7 +511,7 @@ def main():
         verifier.listen_for_attestations(poll_interval=args.poll_interval)
         
     except Exception as e:
-        logger.error(f"❌ Erro fatal: {e}")
+        logger.error(f"âŒ Erro fatal: {e}")
 
 
 if __name__ == "__main__":
