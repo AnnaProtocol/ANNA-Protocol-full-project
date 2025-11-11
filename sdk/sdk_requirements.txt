@@ -1,0 +1,26 @@
+# ANNA Protocol SDK - Python
+# Dependências
+
+# Core blockchain
+web3>=6.11.0
+eth-account>=0.10.0
+eth-typing>=5.0.0
+eth-utils>=5.0.0
+
+# Criptografia
+pycryptodome>=3.19.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Typing
+typing-extensions>=4.8.0
+
+# Dev dependencies (opcional)
+# Descomente para desenvolvimento:
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# black>=23.0.0
+# mypy>=1.5.0
+# flake8>=6.1.0
